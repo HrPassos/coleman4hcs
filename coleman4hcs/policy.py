@@ -499,3 +499,54 @@ class SWLinUCBPolicy(LinUCBPolicy):
         arms = pd.DataFrame(records, columns=['Name', 'Q'])
         arms.sort_values(by='Q', ascending=False, inplace=True)
         return arms['Name'].tolist()
+    
+class SoftmaxPolicy(Policy):
+    """
+    Softmax policy for action selection based on estimated rewards.
+    """
+
+    def __init__(self, temperature):
+        """
+        Initialize Softmax policy with a temperature parameter.
+
+        :param temperature: Temperature parameter controls the exploration-exploitation trade-off.
+        """
+        self.temperature = temperature
+
+    def __str__(self):
+        return f"Softmax (Temperature={self.temperature})"
+
+    def choose_all(self, agent: Agent):
+        """
+        Choose all actions based on Softmax strategy.
+
+        :param agent: The agent for which actions are to be chosen.
+        :return: List of chosen actions.
+        """
+        actions = agent.actions['Name'].tolist()
+        q_values = agent.actions['Q'].values.tolist()
+
+        # Calculate probabilities using Softmax function
+        probabilities = self.softmax(q_values, self.temperature)
+
+        # Check if probabilities contain NaN or sum to 1
+        if np.isnan(probabilities).any() or not np.isclose(np.sum(probabilities), 1.0):
+            # If so, set probabilities to uniform distribution
+            probabilities = np.ones(len(actions)) / len(actions)
+
+        # Sample actions based on probabilities
+        chosen_actions = np.random.choice(actions, size=len(actions), p=probabilities, replace=False)
+
+        return chosen_actions.tolist()
+
+    def softmax(self, values, temperature):
+        """
+        Calculate Softmax probabilities.
+
+        :param values: List of values (Q-values) for each action.
+        :param temperature: Temperature parameter for Softmax.
+        :return: Softmax probabilities.
+        """
+        exp_values = np.exp(np.array(values) / temperature)
+        probabilities = exp_values / np.sum(exp_values)
+        return probabilities
